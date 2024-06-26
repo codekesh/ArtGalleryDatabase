@@ -2,9 +2,9 @@ const express = require("express");
 const Users = require("../models/users");
 const { hashPassword, comparePassword } = require("../helper/authHelper");
 const router = new express.Router();
-
 const JWT = require("jsonwebtoken");
 const { requireSignIn, isAdmin } = require("../middlewares/authMiddlewares");
+const Order = require("../models/order");
 
 router.post("/users", async (req, res) => {
   try {
@@ -140,14 +140,21 @@ router.post("/login", async (req, res) => {
     const token = JWT.sign({ _id: user._id }, "secret", {
       expiresIn: "7d",
     });
+
     res.status(200).send({
       success: true,
       message: "login succesfully",
       user: {
+        dob: user.dob,
         name: user.name,
-        email: user.email,
-        contact: user.contact,
         role: user.role,
+        email: user.email,
+        gender: user.gender,
+        answer: user.answer,
+        contact: user.contact,
+        address: user.address,
+        password: user.password,
+        username: user.username,
       },
       token,
     });
@@ -210,5 +217,115 @@ router.post("/forgotPassword", async (req, res) => {
     });
   }
 });
+
+router.put("/profile", requireSignIn, async (req, res) => {
+  try {
+    const {
+      dob,
+      name,
+      email,
+      gender,
+      answer,
+      contact,
+      address,
+      username,
+      password,
+    } = req.body;
+    const user = await Users.findById(req.user._id);
+
+    if (password && password.length < 6) {
+      return res.json({ error: "Password is required and 6 character long" });
+    }
+
+    const hashedPassword = password ? await hashPassword(password) : undefined;
+    const updatedUser = await Users.findByIdAndUpdate(
+      req.user._id,
+      {
+        dob: dob || user.dob,
+        name: name || user.name,
+        email: email || user.email,
+        gender: gender || user.gender,
+        answer: answer || user.answer,
+        contact: contact || user.contact,
+        address: address || user.address,
+        username: username || user.username,
+        password: hashedPassword || user.password,
+      },
+      { new: true }
+    );
+
+    console.log(updatedUser);
+    res.send(200).send({
+      success: true,
+      message: "Profile updated successfully",
+      updatedUser,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error while updating profile",
+      error,
+    });
+  }
+});
+
+router.get("/orders", requireSignIn, async (req, res) => {
+  try {
+    const orders = await Order.find({ buyer: req.user._id })
+      .populate("products", "-photo")
+      .populate("buyer", "name");
+    res.json(orders);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error WHile Geting Orders",
+      error,
+    });
+  }
+});
+
+router.get("/all-orders", requireSignIn, isAdmin, async (req, res) => {
+  try {
+    const orders = await Order.find({})
+      .populate("products", "-photo")
+      .populate("buyer", "name")
+      .sort({ createdAt: "-1" });
+    res.json(orders);
+  } catch (error) {
+    console.log(error);
+    res.status(500).send({
+      success: false,
+      message: "Error WHile Geting Orders",
+      error,
+    });
+  }
+});
+
+router.put(
+  "/order-status/:orderId",
+  requireSignIn,
+  isAdmin,
+  async (req, res) => {
+    try {
+      const { orderId } = req.params;
+      const { status } = req.body;
+      const orders = await Order.findByIdAndUpdate(
+        orderId,
+        { status },
+        { new: true }
+      );
+      res.json(orders);
+    } catch (error) {
+      console.log(error);
+      res.status(500).send({
+        success: false,
+        message: "Error While Updating Order",
+        error,
+      });
+    }
+  }
+);
 
 module.exports = router;

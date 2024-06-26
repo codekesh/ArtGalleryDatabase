@@ -1,11 +1,20 @@
 const express = require("express");
 const Product = require("../models/product");
 const { requireSignIn, isAdmin } = require("../middlewares/authMiddlewares");
-const { default: slugify } = require("slugify");
 const router = new express.Router();
+const { default: slugify } = require("slugify");
 const formidable = require("express-formidable");
+const Order = require("../models/order");
 const fs = require("fs");
 const Category = require("../models/category");
+const braintree = require("braintree");
+
+var gateway = new braintree.BraintreeGateway({
+  environment: braintree.Environment.Sandbox,
+  merchantId: process.env.Merchant_ID,
+  publicKey: process.env.Public_Key,
+  privateKey: process.env.Private_Key,
+});
 
 router.post(
   "/create-product",
@@ -38,7 +47,9 @@ router.post(
           return res.status(500).send({ error: "Quantity is required" });
         case !artists:
           return res.status(500).send({ error: "Artists is required" });
-        case photo && photo.size > 1000000:
+        case !shipping:
+          return res.status(500).send({ error: "shipping is required" });
+        case photo && photo.size > 7000000:
           return res
             .status(500)
             .send({ error: "Photo is required and less than 1 mb" });
@@ -141,7 +152,7 @@ router.put(
           return res.status(500).send({ error: "Quantity is required" });
         case !artists:
           return res.status(500).send({ error: "Artists is required" });
-        case photo && photo.size > 1000000:
+        case photo && photo.size > 5000000:
           return res
             .status(500)
             .send({ error: "Photo is required and less than 1 mb" });
@@ -337,6 +348,53 @@ router.get("/product-category/:slug", async (req, res) => {
       error,
       message: "Error while getting products",
     });
+  }
+});
+
+router.get("/braintree/token", async (req, res) => {
+  try {
+    gateway.clientToken.generate({}, function (err, response) {
+      if (err) {
+        res.status(500).send(err);
+      } else {
+        res.send(response);
+      }
+    });
+  } catch (error) {
+    console.log(error);
+  }
+});
+
+router.post("/braintree/payment", requireSignIn, async (req, res) => {
+  try {
+    const { nonce, cart } = req.body;
+    let total = 0;
+    cart.map((i) => {
+      total += i.price;
+    });
+    let newTransaction = gateway.transaction.sale(
+      {
+        amount: total,
+        paymentMethodNonce: nonce,
+        options: {
+          submitForSettlement: true,
+        },
+      },
+      function (error, result) {
+        if (result) {
+          const order = new Order({
+            products: cart,
+            payment: result,
+            buyer: req.user._id,
+          }).save();
+          res.json({ ok: true });
+        } else {
+          res.status(500).send(error);
+        }
+      }
+    );
+  } catch (error) {
+    console.log(error);
   }
 });
 

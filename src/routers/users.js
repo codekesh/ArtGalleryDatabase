@@ -5,6 +5,7 @@ const router = new express.Router();
 const JWT = require("jsonwebtoken");
 const { requireSignIn, isAdmin } = require("../middlewares/authMiddlewares");
 const Order = require("../models/order");
+require("dotenv").config();
 
 router.post("/users", async (req, res) => {
   try {

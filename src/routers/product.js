@@ -8,6 +8,7 @@ const Order = require("../models/order");
 const fs = require("fs");
 const Category = require("../models/category");
 const braintree = require("braintree");
+require("dotenv").config();
 
 var gateway = new braintree.BraintreeGateway({
   environment: braintree.Environment.Sandbox,

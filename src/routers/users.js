@@ -21,27 +21,28 @@ router.post("/users", async (req, res) => {
       answer,
     } = req.body;
 
-    // checking user
+    // Checking user
     const existingEmail = await Users.findOne({ email });
     const existingUser = await Users.findOne({ username });
 
-    // existing user
+    // Existing user
     if (existingEmail) {
       return res.status(200).send({
         success: false,
-        message: "Already Register please login",
+        message: "Already Registered, please login",
       });
     }
     if (existingUser) {
       return res.status(200).send({
         success: false,
-        message: "Already taken try different one",
+        message: "Username already taken, try a different one",
       });
     }
-    // hash password
+
+    // Hash password
     const hashedPassword = await hashPassword(password);
 
-    // save
+    // Save user
     const user = await new Users({
       name,
       dob,
@@ -53,6 +54,7 @@ router.post("/users", async (req, res) => {
       password: hashedPassword,
       answer,
     }).save();
+
     res.status(201).send({
       success: true,
       message: "Registered successfully",
@@ -87,18 +89,6 @@ router.get("/users/:id", async (req, res) => {
   }
 });
 
-router.patch("/users/:id", async (req, res) => {
-  try {
-    const _id = req.params.id;
-    const updatauser = await Users.findByIdAndUpdate(_id, req.body, {
-      new: true,
-    });
-    res.send(updatauser);
-  } catch (e) {
-    res.status(400).send(e);
-  }
-});
-
 router.delete("/users/:id", async (req, res) => {
   try {
     const _id = req.params.id;
@@ -122,14 +112,15 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    // check user
+    // Check user
     const user = await Users.findOne({ email });
     if (!user) {
       return res.status(404).send({
         success: false,
-        message: "Email is not registerd",
+        message: "Email is not registered",
       });
     }
+
     const match = await comparePassword(password, user.password);
     if (!match) {
       return res.status(200).send({
@@ -144,7 +135,7 @@ router.post("/login", async (req, res) => {
 
     res.status(200).send({
       success: true,
-      message: "login succesfully",
+      message: "Login successfully",
       user: {
         dob: user.dob,
         name: user.name,
@@ -154,7 +145,6 @@ router.post("/login", async (req, res) => {
         answer: user.answer,
         contact: user.contact,
         address: user.address,
-        password: user.password,
         username: user.username,
       },
       token,
@@ -235,7 +225,7 @@ router.put("/profile", requireSignIn, async (req, res) => {
     const user = await Users.findById(req.user._id);
 
     if (password && password.length < 6) {
-      return res.json({ error: "Password is required and 6 character long" });
+      return res.json({ error: "Password is required and must be at least 6 characters long." });
     }
 
     const hashedPassword = password ? await hashPassword(password) : undefined;
@@ -255,8 +245,7 @@ router.put("/profile", requireSignIn, async (req, res) => {
       { new: true }
     );
 
-    console.log(updatedUser);
-    res.send(200).send({
+    res.status(200).send({
       success: true,
       message: "Profile updated successfully",
       updatedUser,

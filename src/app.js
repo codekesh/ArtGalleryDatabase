@@ -16,7 +16,7 @@ const categoryRouter = require("./routers/category");
 const productRouter = require("./routers/product");
 const subscriberRouter = require("./routers/subscriber");
 
-const port = process.env.PORT || 8000;
+const port = process.env.PORT || 5000;
 
 app.use(express.json());
 app.use(userRouter);
